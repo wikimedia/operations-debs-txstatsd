@@ -1,0 +1,14 @@
+Source: txstatsd
+Maintainer: Sidnei da Silva <sidnei.da.silva@gmail.com>
+Section: python
+Priority: optional
+Build-Depends: python-setuptools (>= 0.6b3), python-all (>= 2.6.6-3), debhelper (>= 7)
+Standards-Version: 3.9.1
+
+Package: python-txstatsd
+Architecture: all
+Depends: ${misc:Depends}, ${python:Depends}
+Description: A network daemon for aggregating statistics
+ .
+ Twisted-based implementation of a statsd-compatible server and client.
+ .
