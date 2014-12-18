@@ -1,0 +1,20 @@
+Metadata-Version: 1.1
+Name: txStatsD
+Version: 1.0.0
+Summary: A network daemon for aggregating statistics
+Home-page: https://launchpad.net/txstatsd
+Author: txStatsD Developers
+Author-email: UNKNOWN
+License: MIT
+Description: 
+        Twisted-based implementation of a statsd-compatible server and client.
+        
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: Intended Audience :: System Administrators
+Classifier: Intended Audience :: Information Technology
+Classifier: Programming Language :: Python
+Classifier: Topic :: Database
+Classifier: Topic :: Internet :: WWW/HTTP
+Classifier: License :: OSI Approved :: MIT License
