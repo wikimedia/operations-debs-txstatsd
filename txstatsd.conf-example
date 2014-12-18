@@ -5,6 +5,8 @@ carbon-cache-host: localhost
 carbon-cache-port: 2003
 # The UDP port where we will listen.
 listen-port: 8125
+# Write metrics using graphite's line-oriented protocol instead of pickle
+use-line-protocol: 0
 
 # The number of milliseconds between each flush.
 flush-interval: 60000
