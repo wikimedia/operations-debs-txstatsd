@@ -156,8 +156,6 @@ class StatsDOptions(OptionsGlue):
          "The port where carbon cache is listening.", int],
         ["carbon-cache-name", "n", None,
          "An identifier for the carbon-cache instance."],
-        ["use-line-protocol", "P", 0,
-         "Use graphite line protocol when sending metrics."],
         ["listen-port", "l", 8125,
          "The UDP port where we will listen.", int],
         ["flush-interval", "i", 60000,
@@ -254,23 +252,6 @@ def report_client_manager_stats():
     return current_stats
 
 
-def _CarbonClientLineProtocol_sendDatapoints(self, datapoints):
-    """Serialize data in line (or plaintext) format, one metric per line."""
-    def _serialize(data):
-        return "".join("%s %s %s\n" % (x, y[1], y[0]) for x, y in data)
-
-    from carbon import instrumentation
-    self.sendString(_serialize(datapoints))
-    instrumentation.increment(self.sent, len(datapoints))
-    self.factory.checkQueue()
-
-
-def _Int32StringReceiver_sendString(self, string):
-    """Write data verbatim to the transport, StringReceiver standard
-       implementation would length-prefix the string instead."""
-    self.transport.write(string)
-
-
 def createService(options):
     """Create a txStatsD service."""
     from carbon.routers import ConsistentHashingRouter
@@ -349,14 +330,6 @@ def createService(options):
             for reporter in getattr(process, "%s_STATS" %
                                     report_name.upper(), ()):
                 reporting.schedule(reporter, 60, metrics.gauge)
-
-    # monkey-patch line protocol sending function :(
-    if options["use-line-protocol"]:
-        import carbon.client
-        carbon.client.CarbonClientProtocol._sendDatapoints = \
-                _CarbonClientLineProtocol_sendDatapoints
-        carbon.client.CarbonClientProtocol.sendString = \
-                _Int32StringReceiver_sendString
 
     # XXX Make this configurable.
     router = ConsistentHashingRouter()
