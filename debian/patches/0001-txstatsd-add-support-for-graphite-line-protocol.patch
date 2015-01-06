@@ -1,0 +1,95 @@
+From: Filippo Giunchedi <fgiunchedi@wikimedia.org>
+Date: Thu, 18 Dec 2014 14:04:07 +0000
+Subject: txstatsd: add support for graphite line-protocol
+
+txstatsd uses graphite's native carbon client, which works well but only
+supports pickle format.
+However I couldn't find any non-graphite tools available that can route pickle
+protocol, we are going to use carbon-c-relay in the first iteration which is
+plaintext-only. See also
+http://graphite.readthedocs.org/en/latest/feeding-carbon.html#the-plaintext-protocol
+
+Changing carbon client code completely isn't an appealing option to me and we
+already ship txstatsd via custom debian packages anyway.
+
+So the ugly approach in this case is to monkey-patch the functions used to
+serialize metrics and restrict plaintext protocol support to txstatsd only :(
+
+Change-Id: I3b4230f8a358adaee7134bd586b503774574a31e
+---
+ txstatsd.conf-example |  4 +++-
+ txstatsd/service.py   | 27 +++++++++++++++++++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/txstatsd.conf-example b/txstatsd.conf-example
+index 1119fa9..53eef1d 100644
+--- a/txstatsd.conf-example
++++ b/txstatsd.conf-example
+@@ -5,6 +5,8 @@ carbon-cache-host: localhost
+ carbon-cache-port: 2003
+ # The UDP port where we will listen.
+ listen-port: 8125
++# Write metrics using graphite's line-oriented protocol instead of pickle
++use-line-protocol: 0
+ 
+ # The number of milliseconds between each flush.
+ flush-interval: 60000
+@@ -23,4 +25,4 @@ monitor-message: txstatsd ping
+ monitor-response: txstatsd pong
+ 
+ [plugin_sample]
+-sample-key: sample-value
+\ No newline at end of file
++sample-key: sample-value
+diff --git a/txstatsd/service.py b/txstatsd/service.py
+index f8721d7..bc77694 100644
+--- a/txstatsd/service.py
++++ b/txstatsd/service.py
+@@ -156,6 +156,8 @@ class StatsDOptions(OptionsGlue):
+          "The port where carbon cache is listening.", int],
+         ["carbon-cache-name", "n", None,
+          "An identifier for the carbon-cache instance."],
++        ["use-line-protocol", "P", 0,
++         "Use graphite line protocol when sending metrics."],
+         ["listen-port", "l", 8125,
+          "The UDP port where we will listen.", int],
+         ["flush-interval", "i", 60000,
+@@ -252,6 +254,23 @@ def report_client_manager_stats():
+     return current_stats
+ 
+ 
++def _CarbonClientLineProtocol_sendDatapoints(self, datapoints):
++    """Serialize data in line (or plaintext) format, one metric per line."""
++    def _serialize(data):
++        return "".join("%s %s %s\n" % (x, y[1], y[0]) for x, y in data)
++
++    from carbon import instrumentation
++    self.sendString(_serialize(datapoints))
++    instrumentation.increment(self.sent, len(datapoints))
++    self.factory.checkQueue()
++
++
++def _Int32StringReceiver_sendString(self, string):
++    """Write data verbatim to the transport, StringReceiver standard
++       implementation would length-prefix the string instead."""
++    self.transport.write(string)
++
++
+ def createService(options):
+     """Create a txStatsD service."""
+     from carbon.routers import ConsistentHashingRouter
+@@ -331,6 +350,14 @@ def createService(options):
+                                     report_name.upper(), ()):
+                 reporting.schedule(reporter, 60, metrics.gauge)
+ 
++    # monkey-patch line protocol sending function :(
++    if options["use-line-protocol"]:
++        import carbon.client
++        carbon.client.CarbonClientProtocol._sendDatapoints = \
++                _CarbonClientLineProtocol_sendDatapoints
++        carbon.client.CarbonClientProtocol.sendString = \
++                _Int32StringReceiver_sendString
++
+     # XXX Make this configurable.
+     router = ConsistentHashingRouter()
+     carbon_client = CarbonClientManager(router)
