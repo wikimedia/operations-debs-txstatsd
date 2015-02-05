@@ -8,7 +8,7 @@ Standards-Version: 3.9.1
 
 Package: python-txstatsd
 Architecture: all
-Depends: ${misc:Depends}, ${python:Depends}
+Depends: ${misc:Depends}, ${python:Depends}, graphite-carbon
 Description: A network daemon for aggregating statistics
  .
  Twisted-based implementation of a statsd-compatible server and client.
